@@ -1,87 +1,119 @@
-from io import BytesIO
+import io
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
-def generar_pdf_factura(data):
-    buffer = BytesIO()
+def generar_pdf_factura(datos):
+    """
+    Genera un PDF con formato de factura fiscal en formato Media Carta (Half Letter).
+    Aplica márgenes, cuadrículas y jerarquía tipográfica estándar.
+    """
+    buffer = io.BytesIO()
     
-    # Medida exacta: Media Carta Horizontal (8.5 x 5.5 pulgadas)
-    PAGE_WIDTH = 8.5 * inch
-    PAGE_HEIGHT = 5.5 * inch
+    # Tamaño Media Carta Horizontal (8.5 x 5.5 pulgadas)
+    ANCHO = 8.5 * inch
+    ALTO = 5.5 * inch
     
-    c = canvas.Canvas(buffer, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
+    c = canvas.Canvas(buffer, pagesize=(ANCHO, ALTO))
     
-    # Extraer datos recibidos
-    razon = str(data.get('razon_social', ''))
-    especialidad = str(data.get('especialidad', ''))
-    rif = str(data.get('rif', ''))
-    direccion = str(data.get('direccion', ''))
-    telefono = str(data.get('telefono', ''))
-    correo = str(data.get('correo', ''))
+    # ---------------------------------------------------------
+    # MARCOS Y RAYADO DE BORDES
+    # ---------------------------------------------------------
+    # Marco exterior
+    c.setLineWidth(1.5)
+    c.setStrokeColor(colors.HexColor("#1A365D")) # Azul corporativo oscuro
+    c.rect(0.25 * inch, 0.25 * inch, ANCHO - 0.5 * inch, ALTO - 0.5 * inch)
     
-    # 1. ENCABEZADO CLIENTE (Ajuste adaptativo de tamaño de letra)
-    font_size = 14 if len(razon) < 30 else 11
-    c.setFont("Helvetica-Bold", font_size)
-    c.drawString(0.5 * inch, 5.0 * inch, razon)
-    
-    y_actual = 4.85 * inch
-    if especialidad and especialidad.strip():
-        c.setFont("Helvetica", 8)
-        c.drawString(0.5 * inch, y_actual, especialidad)
-        y_actual -= 0.15 * inch
-        
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(0.5 * inch, y_actual, f"RIF: {rif}")
-    
-    c.setFont("Helvetica", 7.5)
-    c.drawString(0.5 * inch, y_actual - 0.15 * inch, direccion[:100])
-    contacto = f"Telf: {telefono}" + (f" / Correo: {correo}" if correo else "")
-    c.drawString(0.5 * inch, y_actual - 0.28 * inch, contacto)
-    
-    # Recuadro FACTURA N° y Fecha
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(6.5 * inch, 5.0 * inch, "FACTURA")
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(6.5 * inch, 4.75 * inch, "N°")
-    
-    c.rect(6.5 * inch, 4.25 * inch, 1.5 * inch, 0.35 * inch)
-    c.setFont("Helvetica", 7)
-    c.drawString(6.6 * inch, 4.48 * inch, "DIA        MES        AÑO")
-    
-    # 2. DATOS DEL COMPRADOR (Cuadro vacío para rellenar a mano/impresora)
-    c.rect(0.5 * inch, 3.2 * inch, 7.5 * inch, 0.9 * inch)
-    c.setFont("Helvetica", 8)
-    c.drawString(0.6 * inch, 3.95 * inch, "Nombre o Razón Social:")
-    c.drawString(0.6 * inch, 3.78 * inch, "Dirección Fiscal:")
-    c.drawString(0.6 * inch, 3.61 * inch, "Teléfono:                                                RIF:")
-    c.drawString(0.6 * inch, 3.44 * inch, "Condiciones de Pago:   [  ] CONTADO   [  ] CRÉDITO    DÍAS _____")
+    # Línea interior del marco
+    c.setLineWidth(0.5)
+    c.rect(0.28 * inch, 0.28 * inch, ANCHO - 0.56 * inch, ALTO - 0.56 * inch)
 
-    # 3. CUERPO DE LA TABLA
-    c.rect(0.5 * inch, 1.2 * inch, 7.5 * inch, 1.9 * inch)
-    c.line(1.2 * inch, 1.2 * inch, 1.2 * inch, 3.1 * inch)
-    c.line(5.8 * inch, 1.2 * inch, 5.8 * inch, 3.1 * inch)
-    c.line(6.8 * inch, 1.2 * inch, 6.8 * inch, 3.1 * inch)
+    # ---------------------------------------------------------
+    # ENCABEZADO (Razón Social y RIF)
+    # ---------------------------------------------------------
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(colors.HexColor("#1A365D"))
+    razon = datos.get("razon_social", "NOMBRE O RAZÓN SOCIAL").upper()
+    c.drawString(0.4 * inch, ALTO - 0.6 * inch, razon)
+    
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(colors.HexColor("#333333"))
+    rif = datos.get("rif", "RIF: J-00000000-0")
+    c.drawRightString(ANCHO - 0.4 * inch, ALTO - 0.6 * inch, f"RIF: {rif}")
+    
+    # Especialidad / Actividad Económica (si aplica)
+    y_pos = ALTO - 0.8 * inch
+    if datos.get("especialidad"):
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillColor(colors.HexColor("#555555"))
+        c.drawString(0.4 * inch, y_pos, datos.get("especialidad"))
+        y_pos -= 0.2 * inch
+
+    # Línea divisoria superior
+    c.setLineWidth(1)
+    c.setStrokeColor(colors.HexColor("#1A365D"))
+    c.line(0.4 * inch, y_pos, ANCHO - 0.4 * inch, y_pos)
+    
+    # ---------------------------------------------------------
+    # DATOS DE CONTACTO Y DIRECCIÓN
+    # ---------------------------------------------------------
+    y_pos -= 0.25 * inch
+    c.setFont("Helvetica-Bold", 8)
+    c.setFillColor(colors.black)
+    
+    direccion = datos.get("direccion", "Dirección no especificada")
+    c.drawString(0.4 * inch, y_pos, f"DIRECCIÓN: {direccion[:80]}")
+    
+    y_pos -= 0.18 * inch
+    telefono = datos.get("telefono", "N/A")
+    correo = datos.get("correo", "N/A")
+    c.drawString(0.4 * inch, y_pos, f"TELÉFONO: {telefono}   |   CORREO: {correo}")
+
+    # ---------------------------------------------------------
+    # CUADRO CENTRAL (DATOS DEL CLIENTE / FORMATO DE FACTURA)
+    # ---------------------------------------------------------
+    y_cuadro = y_pos - 0.25 * inch
+    c.setLineWidth(0.8)
+    c.setStrokeColor(colors.HexColor("#CBD5E1"))
+    c.rect(0.4 * inch, y_cuadro - 1.8 * inch, ANCHO - 0.8 * inch, 1.8 * inch)
+    
+    # Rayado de filas internas del cuadro
+    c.setFillColor(colors.HexColor("#F8FAFC"))
+    c.rect(0.4 * inch, y_cuadro - 0.3 * inch, ANCHO - 0.8 * inch, 0.3 * inch, fill=True, stroke=True)
+    
+    c.setFont("Helvetica-Bold", 9)
+    c.setFillColor(colors.HexColor("#1E293B"))
+    c.drawString(0.5 * inch, y_cuadro - 0.2 * inch, "CLIENTE / RAZÓN SOCIAL:")
+    c.drawString(4.5 * inch, y_cuadro - 0.2 * inch, "FECHA DE EMISIÓN:")
+    
+    # Filas para items / conceptos
+    for i in range(1, 5):
+        linea_y = y_cuadro - 0.3 * inch - (i * 0.3 * inch)
+        c.setLineWidth(0.5)
+        c.setStrokeColor(colors.HexColor("#E2E8F0"))
+        c.line(0.4 * inch, linea_y, ANCHO - 0.4 * inch, linea_y)
+
+    # ---------------------------------------------------------
+    # PIE DE PÁGINA (DATOS DE IMPRENTA Y CONTROL SENIAT)
+    # ---------------------------------------------------------
+    y_pie = 0.4 * inch
     
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(0.6 * inch, 2.98 * inch, "CANT.")
-    c.drawString(2.8 * inch, 2.98 * inch, "DESCRIPCIÓN")
-    c.drawString(5.9 * inch, 2.98 * inch, "P. UNITARIO")
-    c.drawString(7.0 * inch, 2.98 * inch, "TOTAL")
-
-    # 4. PIE DE IMPRENTA SENIAT (Tipografía Anzoátegui)
-    c.setFont("Helvetica", 6)
-    p1 = "Tipografía Anzoátegui, S.A. RIF. J-08005647-7 Av. Jorge Rodriguez (Intercomunal) Edif. Greco piso 1 Ofic. 8 Telefax: (0281) 2751793 Barcelona Edo. Anzoátegui"
-    p2 = f"Providencia: SENIAT/07/00048 del 30-01-2008 N° de CONTROL Desde el Nº {data.get('control_desde', '')} Hasta el Nº {data.get('control_hasta', '')} Fecha de Impresión {data.get('fecha_impresion', '')}. Región Nor-Oriental"
-    p3 = f"Factura Desde el Nº {data.get('factura_desde', '')} Hasta el Nº {data.get('factura_hasta', '')}"
+    c.setFillColor(colors.HexColor("#0F172A"))
     
-    c.drawCentredString(4.25 * inch, 0.45 * inch, p1)
-    c.drawCentredString(4.25 * inch, 0.35 * inch, p2)
-    c.drawCentredString(4.25 * inch, 0.25 * inch, p3)
+    ctrl_d = datos.get("control_desde", "00-000001")
+    ctrl_h = datos.get("control_hasta", "00-000050")
+    fact_d = datos.get("factura_desde", "0001")
+    fact_h = datos.get("factura_hasta", "0050")
+    f_imp = datos.get("fecha_impresion", "DD/MM/AAAA")
     
-    c.setFont("Helvetica-Bold", 6)
-    c.drawString(0.5 * inch, 0.12 * inch, "ORIGINAL: BLANCO")
-    c.drawRightString(8.0 * inch, 0.12 * inch, "COPIA SIN DERECHO A CRÉDITO FISCAL: A COLOR")
-
+    c.drawString(0.4 * inch, y_pie + 0.3 * inch, f"N° CONTROL DESDE: {ctrl_d} HASTA: {ctrl_h}")
+    c.drawString(0.4 * inch, y_pie + 0.15 * inch, f"FACTURAS DESDE: {fact_d} HASTA: {fact_h}")
+    
+    c.drawRightString(ANCHO - 0.4 * inch, y_pie + 0.3 * inch, f"FECHA DE IMPRESIÓN: {f_imp}")
+    c.drawRightString(ANCHO - 0.4 * inch, y_pie + 0.15 * inch, "TIPOGRAFÍA ANZOÁTEGUI - RIF: J-XXXXXXXX-X")
+    
     c.save()
     buffer.seek(0)
     return buffer.getvalue()
