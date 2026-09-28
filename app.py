@@ -20,56 +20,39 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
             if not api_key:
                 st.error("Error: No se encontró la API Key de Gemini en Secrets.")
             else:
-                client = genai.Client(api_key=api_key)
-                
-                prompt = f"""
-                Extrae la información para una factura fiscal en Venezuela del siguiente texto.
-                Devuelve ÚNICAMENTE un objeto JSON válido con estas claves exactas:
-                - razon_social
-                - rif
-                - especialidad (si aplica)
-                - direccion
-                - telefono
-                - correo
-                - control_desde
-                - control_hasta
-                - factura_desde
-                - factura_hasta
-                - fecha_impresion
+                try:
+                    client = genai.Client(api_key=api_key)
+                    
+                    prompt = f"""
+                    Extrae la información para una factura fiscal en Venezuela del siguiente texto.
+                    Devuelve un objeto JSON con estas claves exactas:
+                    - razon_social
+                    - rif
+                    - especialidad
+                    - direccion
+                    - telefono
+                    - correo
+                    - control_desde
+                    - control_hasta
+                    - factura_desde
+                    - factura_hasta
+                    - fecha_impresion
 
-                Texto recibido:
-                {raw_text}
-                """
-                
-                # Lista de modelos válidos en la SDK actual
-                modelos_validos = ['gemini-2.5-flash', 'gemini-1.5-flash']
-                response_text = None
-                
-                for mod in modelos_validos:
-                    try:
-                        response = client.models.generate_content(
-                            model=mod,
-                            contents=prompt,
-                        )
-                        if response and response.text:
-                            response_text = response.text
-                            break
-                    except Exception:
-                        continue
-                
-                if response_text:
-                    try:
-                        # Limpiar etiquetas de código si existen
-                        clean_json = response_text.strip()
-                        if clean_json.startswith("```json"):
-                            clean_json = clean_json[7:]
-                        if clean_json.startswith("```"):
-                            clean_json = clean_json[3:]
-                        if clean_json.endswith("```"):
-                            clean_json = clean_json[:-3]
-                        clean_json = clean_json.strip()
-                        
-                        datos = json.loads(clean_json)
+                    Texto recibido:
+                    {raw_text}
+                    """
+                    
+                    # Llamada a la API de Gemini
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt,
+                        config={
+                            'response_mime_type': 'application/json',
+                        }
+                    )
+                    
+                    if response and response.text:
+                        datos = json.loads(response.text)
                         
                         # Crear el PDF
                         pdf_bytes = generar_pdf_factura(datos)
@@ -81,9 +64,10 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                             file_name=f"Boceto_{datos.get('razon_social', 'Cliente')}.pdf",
                             mime="application/pdf"
                         )
-                    except Exception as json_err:
-                        st.error(f"Error al interpretar la respuesta: {json_err}")
-                else:
-                    st.error("No se pudo obtener respuesta de la API. Verifica tu API Key en Secrets.")
+                    else:
+                        st.error("La API no devolvió texto. Revisa la entrada del mensaje.")
+                        
+                except Exception as e:
+                    st.error(f"Detalle del error de conexión/API: {e}")
     else:
         st.warning("Por favor pega un texto antes de presionar el botón.")
