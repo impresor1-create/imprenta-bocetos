@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from google import genai
+import google.generativeai as genai
 from generator import generar_pdf_factura
 
 st.set_page_config(page_title="Tipografía Anzoátegui - Generador", layout="centered")
@@ -15,17 +15,22 @@ raw_text = st.text_area("Mensaje de WhatsApp", height=150, placeholder="Pega aqu
 if st.button("⚡ Generar Boceto PDF", type="primary"):
     if raw_text.strip():
         with st.spinner("Analizando datos con IA y generando PDF..."):
+            # Obtener API Key de los Secrets
             api_key = os.environ.get("GEMINI_API_KEY")
             
             if not api_key:
-                st.error("Error: No se encontró la API Key de Gemini en Secrets.")
+                st.error("Error: No se encontró la GEMINI_API_KEY en Secrets de Streamlit.")
             else:
                 try:
-                    client = genai.Client(api_key=api_key)
+                    # Configurar la API Key con la librería estable
+                    genai.configure(api_key=api_key)
+                    
+                    # Usar el modelo estándar y rápido
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     prompt = f"""
                     Extrae la información para una factura fiscal en Venezuela del siguiente texto.
-                    Devuelve un objeto JSON con estas claves exactas:
+                    Devuelve ÚNICAMENTE un objeto JSON sin formato adicional con estas claves exactas:
                     - razon_social
                     - rif
                     - especialidad
@@ -42,17 +47,12 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                     {raw_text}
                     """
                     
-                    # Llamada a la API de Gemini
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=prompt,
-                        config={
-                            'response_mime_type': 'application/json',
-                        }
-                    )
+                    response = model.generate_content(prompt)
                     
                     if response and response.text:
-                        datos = json.loads(response.text)
+                        # Limpiar etiquetas markdown de la respuesta si existen
+                        texto_limpio = response.text.replace("```json", "").replace("```", "").strip()
+                        datos = json.loads(texto_limpio)
                         
                         # Crear el PDF
                         pdf_bytes = generar_pdf_factura(datos)
@@ -65,9 +65,9 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                             mime="application/pdf"
                         )
                     else:
-                        st.error("La API no devolvió texto. Revisa la entrada del mensaje.")
+                        st.error("La IA no devolvió respuesta. Intenta de nuevo.")
                         
                 except Exception as e:
-                    st.error(f"Detalle del error de conexión/API: {e}")
+                    st.error(f"Detalle del error: {e}")
     else:
         st.warning("Por favor pega un texto antes de presionar el botón.")
