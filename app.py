@@ -18,7 +18,7 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
             api_key = os.environ.get("GEMINI_API_KEY")
             
             if not api_key:
-                st.error("Error: No se encontró la API Key de Gemini.")
+                st.error("Error: No se encontró la API Key de Gemini en Secrets.")
             else:
                 client = genai.Client(api_key=api_key)
                 
@@ -43,11 +43,11 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                 
                 try:
                     response = client.models.generate_content(
-                        model='gemini-1.5-flash',
+                        model='gemini-2.0-flash',
                         contents=prompt,
                     )
                     
-                    # Limpiar formato Markdown
+                    # Limpiar formato Markdown si lo incluye
                     clean_json = response.text.replace('```json', '').replace('```', '').strip()
                     datos = json.loads(clean_json)
                     
