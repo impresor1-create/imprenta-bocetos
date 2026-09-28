@@ -41,27 +41,34 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                 {raw_text}
                 """
                 
-                # Lista de modelos a intentar en orden jerárquico
-                modelos_a_probar = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash']
+                # Lista de modelos válidos en la SDK actual
+                modelos_validos = ['gemini-2.5-flash', 'gemini-1.5-flash']
                 response_text = None
                 
-                for modelo in modelos_a_probar:
+                for mod in modelos_validos:
                     try:
                         response = client.models.generate_content(
-                            model=modelo,
+                            model=mod,
                             contents=prompt,
                         )
-                        response_text = response.text
-                        if response_text:
-                            break  # Si respondió con éxito, salir del bucle
-                    except Exception as e:
-                        # Si falla por 503 u otro error, continúa al siguiente modelo
+                        if response and response.text:
+                            response_text = response.text
+                            break
+                    except Exception:
                         continue
                 
                 if response_text:
                     try:
-                        # Limpiar formato Markdown si lo incluye
-                        clean_json = response_text.replace('```json', '').replace('```', '').strip()
+                        # Limpiar etiquetas de código si existen
+                        clean_json = response_text.strip()
+                        if clean_json.startswith("```json"):
+                            clean_json = clean_json[7:]
+                        if clean_json.startswith("```"):
+                            clean_json = clean_json[3:]
+                        if clean_json.endswith("```"):
+                            clean_json = clean_json[:-3]
+                        clean_json = clean_json.strip()
+                        
                         datos = json.loads(clean_json)
                         
                         # Crear el PDF
@@ -75,8 +82,8 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                             mime="application/pdf"
                         )
                     except Exception as json_err:
-                        st.error(f"Error al interpretar los datos extraídos: {json_err}")
+                        st.error(f"Error al interpretar la respuesta: {json_err}")
                 else:
-                    st.error("Los servidores de IA están temporalmente saturados. Por favor presiona el botón nuevamente en unos segundos.")
+                    st.error("No se pudo obtener respuesta de la API. Verifica tu API Key en Secrets.")
     else:
         st.warning("Por favor pega un texto antes de presionar el botón.")
