@@ -15,22 +15,17 @@ raw_text = st.text_area("Mensaje de WhatsApp", height=150, placeholder="Pega aqu
 if st.button("⚡ Generar Boceto PDF", type="primary"):
     if raw_text.strip():
         with st.spinner("Analizando datos con IA y generando PDF..."):
-            # Obtener API Key de los Secrets
             api_key = os.environ.get("GEMINI_API_KEY")
             
             if not api_key:
                 st.error("Error: No se encontró la GEMINI_API_KEY en Secrets de Streamlit.")
             else:
                 try:
-                    # Configurar la API Key con la librería estable
                     genai.configure(api_key=api_key)
-                    
-                    # Usar el modelo estándar y rápido
-                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     prompt = f"""
                     Extrae la información para una factura fiscal en Venezuela del siguiente texto.
-                    Devuelve ÚNICAMENTE un objeto JSON sin formato adicional con estas claves exactas:
+                    Devuelve ÚNICAMENTE un objeto JSON válido con estas claves exactas:
                     - razon_social
                     - rif
                     - especialidad
@@ -47,10 +42,20 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                     {raw_text}
                     """
                     
-                    response = model.generate_content(prompt)
+                    # Probar con los alias oficiales activos de la librería
+                    modelos = ['gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-pro']
+                    response = None
+                    
+                    for m in modelos:
+                        try:
+                            model = genai.GenerativeModel(m)
+                            response = model.generate_content(prompt)
+                            if response and response.text:
+                                break
+                        except Exception:
+                            continue
                     
                     if response and response.text:
-                        # Limpiar etiquetas markdown de la respuesta si existen
                         texto_limpio = response.text.replace("```json", "").replace("```", "").strip()
                         datos = json.loads(texto_limpio)
                         
@@ -65,7 +70,7 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                             mime="application/pdf"
                         )
                     else:
-                        st.error("La IA no devolvió respuesta. Intenta de nuevo.")
+                        st.error("No se pudo obtener respuesta del modelo de IA. Intenta de nuevo.")
                         
                 except Exception as e:
                     st.error(f"Detalle del error: {e}")
