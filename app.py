@@ -43,7 +43,7 @@ if st.button("⚡ Generar Boceto PDF", type="primary"):
                 
                 try:
                     response = client.models.generate_content(
-                        model='gemini-2.0-flash',
+                        model='gemini-3.8-flash',
                         contents=prompt,
                     )
                     
